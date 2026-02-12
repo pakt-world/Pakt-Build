@@ -1,0 +1,161 @@
+/* -------------------------------------------------------------------------- */
+/*                             External Dependency                            */
+/* -------------------------------------------------------------------------- */
+
+import {
+	useQuery,
+	useInfiniteQuery,
+	type QueryKey,
+	type UseQueryOptions,
+	type UseQueryResult,
+	type UseInfiniteQueryResult,
+} from "@tanstack/react-query";
+
+/* -------------------------------------------------------------------------- */
+/*                             Internal Dependency                            */
+/* -------------------------------------------------------------------------- */
+
+import { axios, type ApiError } from "@/lib/axios";
+import { toast } from "@/components/common/toaster";
+import { TalentProps, TalentReview } from "../types/talents";
+
+// Talent Fetch
+
+type GetTalentFetchDetailsError = ApiError<null>;
+
+interface talentFetchParams {
+	page?: number;
+	limit: number;
+	filter: Record<string, unknown>;
+}
+interface talentListResponse {
+	data: TalentProps[];
+	pages: number;
+	page: number;
+	limit: number;
+	total: number;
+}
+interface reviewResponse {
+	data: TalentReview[];
+	page: number;
+	count: number;
+}
+
+async function getTalent({ limit = 20, page = 1, filter }: talentFetchParams): Promise<talentListResponse> {
+	const res = await axios.get(`/account/user`, {
+		params: {
+			page,
+			limit,
+			...filter,
+		},
+	});
+	return res.data.data;
+}
+
+async function getTalentById(id: string, isLoggedIn: boolean = false): Promise<TalentProps> {
+	const talent = await axios.get(isLoggedIn ? `/account/user/${id}` : `/account-public/user/${id}`);
+	return talent.data.data;
+}
+
+async function getTalentReview(
+	userId: string,
+	page: string,
+	limit: string,
+	isLoggedIn: boolean = false
+): Promise<reviewResponse> {
+	const review = await axios.get(
+		`${isLoggedIn ? "/reviews" : "/reviews-public"}?userId=${userId}&page=${page}&limit=${limit}`
+	);
+	return review.data.data;
+}
+
+// ========================= Get Talents ========================= //
+export const useGetTalents = ({
+	limit,
+	page,
+	filter,
+}: talentFetchParams): UseQueryResult<talentListResponse, GetTalentFetchDetailsError> => {
+	const getQueryKey: QueryKey = [`talents_${limit}_${page}_${JSON.stringify(filter)}`];
+	const options: UseQueryOptions<talentListResponse, GetTalentFetchDetailsError> = {
+		queryFn: async () => {
+			return getTalent({ limit, page, filter });
+		},
+		queryKey: getQueryKey,
+		onError: (error) => {
+			toast.error(error.response?.data.message ?? "An error fetching talents occurred");
+		},
+		enabled: true,
+	};
+
+	return useQuery(getQueryKey, options);
+};
+
+export interface GetTalentResponse {
+	limit: number;
+	page: number;
+	pages: number;
+	total: number;
+	data: TalentProps[];
+}
+
+export function useGetTalentInfinitely({
+	limit,
+	filter,
+}: talentFetchParams): UseInfiniteQueryResult<GetTalentResponse, ApiError> {
+	const getQueryKey: QueryKey = ["talents", `${limit}_${JSON.stringify(filter)}`];
+	return useInfiniteQuery(getQueryKey, async ({ pageParam = 1 }) => getTalent({ limit, page: pageParam, filter }), {
+		getNextPageParam: (lastPage) => {
+			const { page: p, pages } = lastPage;
+			const nextPage = p < pages;
+			return nextPage ? p + 1 : undefined;
+		},
+		enabled: true,
+	});
+}
+
+// ========================= Get Talents ========================= //
+
+export const useGetTalentById = (
+	id: string,
+	isLoggedIn: boolean,
+	enabled: boolean = false
+): UseQueryResult<
+	{
+		talent: TalentProps;
+	},
+	GetTalentFetchDetailsError
+> => {
+	const getQueryIdKey = [`talent_id_${id}`];
+	return useQuery({
+		queryFn: async () => {
+			const talent = await getTalentById(id, isLoggedIn);
+			return { talent };
+		},
+		queryKey: getQueryIdKey,
+		onError: (error: GetTalentFetchDetailsError) => {
+			toast.error(error.response?.data.message ?? "An error fetching talents occurred");
+		},
+		enabled,
+	});
+};
+
+export const useGetTalentReviewById = (
+	id: string,
+	page: string,
+	limit: string,
+	isLoggedIn: boolean,
+	enabled = false
+): UseQueryResult<reviewResponse, GetTalentFetchDetailsError> => {
+	const getQueryIdReview = [`talent_review_${id}_${page}_${limit}`];
+	return useQuery({
+		queryFn: async () => {
+			const review = await getTalentReview(id, page, limit, isLoggedIn);
+			return review;
+		},
+		queryKey: getQueryIdReview,
+		onError: (error: GetTalentFetchDetailsError) => {
+			toast.error(error.response?.data.message ?? "An error fetching talents occurred");
+		},
+		enabled,
+	});
+};

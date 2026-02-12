@@ -1,0 +1,46 @@
+echo '🏗️👷 Styling, testing and building your project before committing'
+
+# Check Prettier standards
+yarn check-format ||
+(
+    echo '🤢🤮🤢🤮 Its F**KING RAW - Your styling looks disgusting. 🤢🤮🤢🤮
+            Prettier Check Failed. Run npm run format, add changes and try commit again.';
+    false;
+)
+
+# Check tsconfig standards
+yarn check-types ||
+(
+    echo '🤡😂❌🤡 Failed Type check. 🤡😂❌🤡
+            Are you seriously trying to write that? Make the changes required above.'
+    false;
+)
+
+#Check next.js standards
+yarn lint ||
+(
+	echo ' 🤔🤔🤔🤔... Alright... I see you are trying to be funny... But your linting is not. 🤔🤔🤔🤔
+			What the heck is this? Fix the lint errors above.'
+	false;
+)
+
+# If everything passes... Now we can commit
+echo '🤔🤔🤔🤔... Alright... Code looks good to me... Trying to build now. 🤔🤔🤔🤔'
+
+yarn build ||
+(
+    echo '❌👷🔨❌ Better call Bob... Because your build failed ❌👷🔨❌
+            Next build failed: View the errors above to see why.
+    '
+    false;
+)
+
+# If everything passes... Now we can commit
+echo '✅✅✅✅ You win this time... I am committing this now. ✅✅✅✅'
+
+# yarn start || (
+# 	echo '❌👷🔨❌ Better call Bob... Because your start failed ❌👷🔨❌
+# 			Next start failed: View the errors above to see why.
+# 	'
+# 	false;
+# )
